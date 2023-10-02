@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 
-#include <ew/external/glad.h>
+#include <ew/ewMath/external/glad.h>
 #include <ew/ewMath/ewMath.h>
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -9,6 +9,8 @@
 #include <imgui_impl_opengl3.h>
 
 #include <ew/shader.h>
+#include <ew/texture.h>
+#include <ew/texture.cpp>
 
 struct Vertex {
 	float x, y, z;
@@ -32,7 +34,11 @@ unsigned short indices[6] = {
 	2, 3, 0
 };
 
+unsigned int brickTexture = loadTexture("assets/brick.png", GL_REPEAT, GL_LINEAR);
+unsigned int characterTexture = loadTexture("assets/spamton.png", GL_REPEAT, GL_NEAREST);
+
 int main() {
+
 	printf("Initializing...");
 	if (!glfwInit()) {
 		printf("GLFW failed to init!");
@@ -64,6 +70,11 @@ int main() {
 
 	glBindVertexArray(quadVAO);
 
+	//Create a different shader for background vs character
+	ew:: Shader backgroundShader("assets/background.vert", "assets/background.frag");
+	ew:: Shader characterShader("assets/character.vert", "assets/character.frag");
+
+
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 		glClearColor(0.3f, 0.4f, 0.9f, 1.0f);
@@ -73,6 +84,15 @@ int main() {
 		shader.use();
 
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, NULL);
+
+		//Place textureA in unit 0
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, brickTexture);
+
+		//Place textureB in unit 1
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, characterTexture);
+
 
 		//Render UI
 		{
@@ -85,6 +105,30 @@ int main() {
 
 			ImGui::Render();
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+			clear();
+			bindQuadVAO(); //Both use same quad mesh
+
+			//Draw background
+			backgroundShader.use();
+			bindBackgroundTextures();
+			setBackgroundShaderUniforms();
+			drawQuad();
+
+			//Draw character
+			characterShader.use();
+			bindCharacterTextures();
+			setCharacterShaderUniforms();
+			drawQuad();
+
+			drawUI();
+			swapBuffers();
+
+			glEnable(GL_BLEND)
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		}
+
+
 		}
 
 		glfwSwapBuffers(window);
@@ -124,4 +168,5 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height)
 {
 	glViewport(0, 0, width, height);
 }
+
 
